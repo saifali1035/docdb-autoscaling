@@ -106,31 +106,40 @@ class DocumentDB:
     # In theory this block never can be executed
     return 'db.r5.large'
 
-  def add_replica(self, ignore_status=False):
+  def add_replica(self, ignore_status=True):
     """
     Add one read replica.
 
     Parameters
     ----------
     ignore_status : bool
-      Ignore the cluster status.
+      Ignore the cluster status, except when the cluster is being initially created.
     """
     replicas_count = self.get_replicas_count()
 
     if replicas_count >= self.max_capacity:
-      logging.error("Maximum capacity reached.")
-      return None
+        logging.error("Maximum capacity reached.")
+        return None
 
+    # Check if the cluster is in the "creating" state
+    cluster_status = self.db_clusters.get('DBClusters')[0].get('Status')
+    if cluster_status == 'creating':
+        logging.error("Cluster is in 'creating' state, cannot add replicas yet.")
+        return None
+
+    # If not ignoring the modifying state, check if the cluster is modifying
     if not ignore_status and self.is_modifying():
-      logging.error("Is modifying.")
-      return None
+        logging.error("Cluster is currently modifying, cannot add a replica.")
+        return None
 
+    logging.info("Adding replica...")
     return client.create_db_instance(
-      DBClusterIdentifier=self.db_cluster_id,
-      DBInstanceIdentifier="%s-%s" % (self.db_cluster_id, uuid.uuid4().hex[0:8]),
-      DBInstanceClass=self.get_primary_instance_class(),
-      Engine="docdb",
+        DBClusterIdentifier=self.db_cluster_id,
+        DBInstanceIdentifier="%s-%s" % (self.db_cluster_id, uuid.uuid4().hex[0:8]),
+        DBInstanceClass=self.get_primary_instance_class(),
+        Engine="docdb",
     )
+
 
   def remove_replica(self, ignore_status=False):
     """
