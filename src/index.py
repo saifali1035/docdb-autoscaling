@@ -3,6 +3,11 @@ import json
 import logging
 import autoscaling
 
+# Set up logging configuration at the start
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger()
+logger.setLevel(logging.DEBUG)
+
 # Environment variables
 min_capacity = int(os.environ.get("min_capacity"))
 max_capacity = int(os.environ.get("max_capacity"))
